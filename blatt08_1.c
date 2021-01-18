@@ -3,7 +3,7 @@
 | |_) | '__/ _ \| |/ _ \ |/ / __(_)   | |/ _ \ __| '__| / __|
 |  __/| | | (_) | |  __/   <| |_ _    | |  __/ |_| |  | \__ \
 |_|   |_|  \___// |\___|_|\_\\__(_)   |_|\___|\__|_|  |_|___/
-              |_*/
+              |__/
 
 (A) Spezifikationen
 Wir wollen ein Tetrisspiel programmieren, welches folgende Eigenschaften erfüllt.
@@ -11,7 +11,7 @@ Wir wollen ein Tetrisspiel programmieren, welches folgende Eigenschaften erfüll
 Neues Spiel starten
 
 Spielfeld anzeigen
-	
+
 Spiel beenden:
 	Highscore speichern
 	Menü anzeigen
@@ -20,7 +20,7 @@ Figuren Visualisieren:
 	Figuren farbig machen
 	Figuren Fallen
 	Randomizer für die Form
-	
+
 Benutzerinteraktion
 	Figuren drehen -> rotate();
 	Figuren Steuern -> move();
@@ -30,7 +30,7 @@ Benutzerinteraktion
 Wenn eine Reihe voll ist:
 	Punkte	-> addScore();
 	Reihe löschen -> removeRow();
-	
+
 Wenn das Feld voll ist:
 	Spiel beenden -> gameOver();
 
@@ -39,7 +39,7 @@ Menü:
 	Spiel beenden
 	Zurück zum aktuellen Spiel
 	Highscore anzeigen
-
+*/
 
 
 (B) Design
@@ -154,6 +154,5 @@ pause(){
 }
 
 main() {
-	showMenu(0);	
+	showMenu(0);
 }
-	
