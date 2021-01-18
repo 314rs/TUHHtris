@@ -12,6 +12,9 @@
 
 #define GAMEWIDTH (10)
 #define GAMEHEIGHT (18)
+#define GAMESTATE_MENU 0
+#define GAMESTATE_GAME 1
+#define GAMESTATE_HIGHSCORE 2
 
 //Screen dimension constants
 const int SCREEN_WIDTH = 720;
@@ -31,6 +34,13 @@ TTF_Font* g_font = NULL;
 SDL_Rect g_fontViewport = {400, 0, SCREEN_WIDTH - 400, 28};
 SDL_Color g_textColor = {0, 0, 0};
 
+//timing
+uint32_t startTime = 0;
+char timeText[64];
+unsigned int countedFrames = 0;
+
+int gameState = 0;
+int activeGame = 0;
 
 //Top left corner viewport
 SDL_Rect minoViewport = {0, 0, 40, 40};
@@ -69,8 +79,12 @@ struct fontTexture {
 	char string[20];
 	int width;
 	int height;
-} 	score = {NULL, "Average FPS", 0, 0},
-	scoreNum = {NULL, "", 0, 0};
+} 	score = {NULL, "Score:", 0, 0},
+	scoreNum = {NULL, "", 0, 0},
+	start = {NULL, "Neues Spiel [Enter]", 0, 0},
+	endButton = {NULL, "Spiel [b]eenden", 0, 0},
+	highscoreButton = {NULL, "[H]ighscore anzeigen", 0, 0},
+	resumeButton = {NULL, "[z]urueck zum Spiel", 0, 0};
 
 //Loads individual image as texture (hardware based rendering)
 SDL_Texture* loadTextureFromFile(char path[], int *width, int *height);
@@ -152,6 +166,10 @@ int loadMedia() {
 	//Set blending function
 	//SDL_SetTextureBlendMode( score.p_texture, blending );
 	//SDL_SetTextureAlphaMod( score.p_texture, alpha );
+	start.p_texture = loadTextureFromFont(start.string, g_textColor, &start.width, &start.height);
+	endButton.p_texture = loadTextureFromFont(endButton.string, g_textColor, &endButton.width, &endButton.height);
+	highscoreButton.p_texture = loadTextureFromFont(highscoreButton.string, g_textColor, &highscoreButton.width, &highscoreButton.height);
+	resumeButton.p_texture = loadTextureFromFont(resumeButton.string, g_textColor, &resumeButton.width, &resumeButton.height);
 
 
 	return success;
@@ -189,6 +207,76 @@ void renderToViewport(SDL_Texture* texture, SDL_Rect* viewport) {
 
 	//Render texture to screen
 	SDL_RenderCopy( gp_renderer, texture, NULL, NULL );
+}
+
+void showGame(void) {
+	//clear backbuffer
+	SDL_RenderClear( gp_renderer );
+
+	//print the game gackground
+	for (int i = 0; i < GAMEWIDTH * GAMEHEIGHT; i++) {
+		if (game[i / GAMEWIDTH][i % GAMEWIDTH]) {
+			minoViewport.y = (i / GAMEWIDTH) * 40;
+			minoViewport.x = (i % GAMEWIDTH) * 40;
+			renderToViewport(mino_I.p_texture, &minoViewport);
+		}
+	}
+	g_fontViewport.y = 0;
+	g_fontViewport.x = 400;
+	g_fontViewport.w = score.width;
+	renderToViewport(score.p_texture, &g_fontViewport);
+	g_fontViewport.y += score.height + 10;
+
+	startTime = countedFrames / (SDL_GetTicks() / (float) 1000);
+	sprintf(timeText, "%8u", startTime);
+	//scoreNum.string = timeText;
+	scoreNum.p_texture = loadTextureFromFont(timeText, g_textColor, &scoreNum.width, &scoreNum.height);
+	g_fontViewport.w = scoreNum.width;
+	renderToViewport(scoreNum.p_texture, &g_fontViewport);
+
+
+
+	//Update screen
+	SDL_RenderPresent(gp_renderer);
+}
+
+void showMenu(void) {
+	//clear backbuffer
+	SDL_RenderClear( gp_renderer );
+
+	g_fontViewport.x = SCREEN_WIDTH / 2 - (start.width / 2);
+	g_fontViewport.y = 20;
+	g_fontViewport.w = start.width;
+	renderToViewport(start.p_texture, &g_fontViewport);
+
+	if (activeGame) {
+		g_fontViewport.y += 60;
+		g_fontViewport.w = resumeButton.width;
+		g_fontViewport.x = SCREEN_WIDTH / 2 - (resumeButton.width / 2);
+		renderToViewport(resumeButton.p_texture, &g_fontViewport);
+	}
+
+	g_fontViewport.y += 60;
+	g_fontViewport.w = endButton.width;
+	g_fontViewport.x = SCREEN_WIDTH / 2 - (endButton.width / 2);
+	renderToViewport(endButton.p_texture, &g_fontViewport);
+
+	g_fontViewport.y += 60;
+	g_fontViewport.w = highscoreButton.width;
+	g_fontViewport.x = SCREEN_WIDTH / 2 - (highscoreButton.width / 2);
+	renderToViewport(highscoreButton.p_texture, &g_fontViewport);
+
+
+
+
+
+	//Update screen
+	SDL_RenderPresent(gp_renderer);
+
+}
+
+void showHighscore(void) {
+	renderToViewport(score.p_texture, &g_fontViewport);
 }
 
 //load a texture form a file (path)
@@ -248,68 +336,71 @@ int main(int argc, char *argv[]) {
 		int quit = 0;
 		//Event handler
 		SDL_Event e;
-		uint32_t startTime = 0;
-		char timeText[64];
-		unsigned int countedFrames = 0;
+
 		if (loadMedia()) {
-		//while the app is running:  GAMELOOP
-		while (!quit) {
-			//Handle events on queue
-			while (SDL_PollEvent( &e )) {
-				//User requests quit
-				if (e.type == SDL_QUIT) {
-					quit = 1;
-				} else if (e.type == SDL_KEYDOWN) {
-					//Select surfaces based on key press
-					switch (e.key.keysym.sym) {
-						case SDLK_UP:
 
-							break;
-						case SDLK_DOWN:
+			//while the app is running:  GAMELOOP
+			while (!quit) {
+				//Handle events on queue
+				while (SDL_PollEvent( &e )) {
+					//User requests quit
+					if (e.type == SDL_QUIT) {
+						quit = 1;
+					} else if (e.type == SDL_KEYDOWN) {
+						//Select surfaces based on key press
+						switch (e.key.keysym.sym) {
+							case SDLK_UP:
+								break;
+							case SDLK_DOWN:
+								break;
+							case SDLK_LEFT:
 
-							break;
-						case SDLK_LEFT:
+								break;
+							case SDLK_RIGHT:
 
-							break;
-						case SDLK_RIGHT:
+								break;
+							case SDLK_ESCAPE:
+								gameState = GAMESTATE_MENU;
+								break;
+							case SDLK_RETURN:
+								gameState = GAMESTATE_GAME;
+								break;
+							case SDLK_z:
 
-							break;
-						default:
+								break;
+							case SDLK_h:
+								gameState = GAMESTATE_HIGHSCORE;
+								break;
+							case SDLK_b:
+								quit = 1;
+								break;
+							default:
 
-							break;
+								break;
+						}
 					}
 				}
+
+
+					//Gamelogic
+					switch (gameState) {
+						case GAMESTATE_GAME:
+							showGame();
+							activeGame = 1;
+							break;
+						case GAMESTATE_MENU:
+							showMenu();
+							break;
+						case GAMESTATE_HIGHSCORE:
+							showHighscore();
+							break;
+						default:
+							break;
+					}
+
+
+					countedFrames++;
 			}
-
-			//clear backbuffer
-			SDL_RenderClear( gp_renderer );
-
-			//print the game gackground
-			for (int i = 0; i < GAMEWIDTH * GAMEHEIGHT; i++) {
-				if (game[i / GAMEWIDTH][i % GAMEWIDTH]) {
-					minoViewport.y = (i / GAMEWIDTH) * 40;
-					minoViewport.x = (i % GAMEWIDTH) * 40;
-					renderToViewport(mino_I.p_texture, &minoViewport);
-				}
-			}
-			g_fontViewport.y = 0;
-			g_fontViewport.w = score.width;
-			renderToViewport(score.p_texture, &g_fontViewport);
-			g_fontViewport.y += score.height + 10;
-
-			startTime = countedFrames / (SDL_GetTicks() / (float) 1000);
-			sprintf(timeText, "%8u", startTime);
-			//scoreNum.string = timeText;
-			scoreNum.p_texture = loadTextureFromFont(timeText, g_textColor, &scoreNum.width, &scoreNum.height);
-			g_fontViewport.w = scoreNum.width;
-			renderToViewport(scoreNum.p_texture, &g_fontViewport);
-
-
-
-			//Update screen
-			SDL_RenderPresent(gp_renderer);
-			countedFrames++;
-		}
 		} else {
 			printf("Failed to load media!\n");
 		}
