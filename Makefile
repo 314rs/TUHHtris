@@ -23,7 +23,7 @@ LIBRARY_PATHS = -LC:\SDL2\lib
 COMPILER_FLAGS =
 
 #LINKER_FLAGS specifies the libraries we're linking against  -lopengl32  -lSDL2_mixer
-LINKER_FLAGS = -lmingw32 -lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf
+LINKER_FLAGS = -lmingw32 -lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf icon.o
 
 #This is the target that compiles our executable
 all : $(OBJS)

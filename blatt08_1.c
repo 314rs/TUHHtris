@@ -8,18 +8,18 @@
 (A) Spezifikationen
 Wir wollen ein Tetrisspiel programmieren, welches folgende Eigenschaften erfüllt.
 
-Neues Spiel starten
+Neues Spiel starten x
 
-Spielfeld anzeigen
+Spielfeld anzeigen x
 
 Spiel beenden:
 	Highscore speichern
-	Menü anzeigen
+	Menü anzeigen x
 
 Figuren Visualisieren:
-	Figuren farbig machen
-	Figuren Fallen
-	Randomizer für die Form
+	Figuren farbig machen x
+	Figuren Fallen x
+	Randomizer für die Form x
 
 Benutzerinteraktion
 	Figuren drehen -> rotate();
