@@ -24,6 +24,7 @@ int main(int argc, char *argv[]) {
 		if (loadMedia()) {
 
 			srand(time(NULL));
+			//create  first shapes
 			rand_first = rand() % 7;
 			mino_current.p_texture = mino[rand_first].p_texture;
 			for (int m = 0; m < 16; m++) {
@@ -32,6 +33,13 @@ int main(int argc, char *argv[]) {
 				}
 			}
 			mino_current.x = 3;
+			next_rand = rand() % 7;
+			mino_next.p_texture = mino[next_rand].p_texture;
+			for (int m = 0; m < 16; m++) {
+				for (int n = 0; n < 4; n++) {
+					mino_next.shape[m][n] = mino[next_rand].shape[m][n];
+				}
+			}
 			//while the app is running:  GAMELOOP
 			while (!quit) {
 				//Handle events on queue
@@ -46,7 +54,7 @@ int main(int argc, char *argv[]) {
 								up_pressed = 1;
 								break;
 							case SDLK_DOWN:
-								treshold = 200;
+								treshold = 50;
 								break;
 							case SDLK_LEFT:
 								x_change = -1;
@@ -80,48 +88,67 @@ int main(int argc, char *argv[]) {
 					//Gamelogic
 					switch (gameState) {
 						case GAMESTATE_GAME:
-							//rotation
-							if (SDL_GetTicks() - key_timestamp > 200) {
-								if (up_pressed) {
-									//rotation
-									for (int m = 0; m < 4; m++) {
-										for (int n = 0; n < 4; n++) {
-											if (!(game[mino_current.y + m][mino_current.x + n] && mino_current.shape[m + ((rotation + 4) % 16)][n])) {
-												rotation_allowed = 1;
+
+							//rotation - works
+							if ((SDL_GetTicks() - rotation_timestamp > 100) && up_pressed) {
+								//check if rotation is allowed
+								rotation_allowed = 1;
+								for (int m = 0; m < 4; m++) {
+									for (int n = 0; n < 4; n++) {
+										if (mino_current.shape[m + ((rotation + 4) % 16)][n]) {
+											if ((game[mino_current.y + m][mino_current.x + n]) || (mino_current.x + n < 0) ||( mino_current.x + n >= GAMEWIDTH)) {
+												rotation_allowed = 0;
 											}
 										}
 									}
-									if (rotation_allowed){
-										rotation = (rotation + 4) % 16;
-									}
-									rotation_allowed = 0;
-									up_pressed = 0;
 								}
-								if (x_change != 0){
+								//rotate if allowed
+								if (rotation_allowed){
+									rotation = (rotation + 4) % 16;
+								}
+								//reset flags
+								up_pressed = 0;
+								rotation_timestamp = SDL_GetTicks();
+							}
 
-									//x movement
+							//x movement - works
+							if (SDL_GetTicks() - move_timestamp > 100) {
+								if (x_change != 0) {
 									for (int m = 0; m < 4; m++) {
 										for (int n = 0; n < 4; n++) {
-											if ((game[mino_current.y + m][mino_current.x + n + x_change] && mino_current.shape[m + rotation][n])) {
-												x_change = 0;
+											if(mino_current.shape[m + rotation][n]) {
+												if((mino_current.x + n + x_change < 0) || (mino_current.x + n + x_change >= GAMEWIDTH) || (game[mino_current.y + m][mino_current.x + n + x_change])) {
+													x_change = 0;
+												}
 											}
 										}
 									}
 									mino_current.x += x_change;
 									x_change = 0;
+									move_timestamp = SDL_GetTicks();
 								}
-								key_timestamp = SDL_GetTicks();
 							}
-							showGame();
 
+							//down movement
 							if (SDL_GetTicks() - down_timestamp > treshold) {
-								treshold = 1000;
-								if (!playGame()) {
-									//Handle the game over
-									activeGame = 0;
+								//check if
+								mino_current.y ++;
+								for (int m = 0; m < 4; m++) {
+									for (int n = 0; n < 4; n++) {
+										if (mino_current.shape[m + rotation][n]) {
+											if(mino_current.y + m >= GAMEHEIGHT || (game[mino_current.y + m][mino_current.x + n])) {
+												saveMinoToGame();
+											}
+										}
+									}
 								}
+
+
+								treshold = 1000;
 								down_timestamp = SDL_GetTicks();
 							}
+
+							showGame();
 
 							break;
 						case GAMESTATE_MENU:
