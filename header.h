@@ -4,6 +4,7 @@
 #define GAMESTATE_MENU 0
 #define GAMESTATE_GAME 1
 #define GAMESTATE_HIGHSCORE 2
+#define GAMESTATE_GAMEOVER 3
 
 //Screen dimension constants
 const int SCREEN_WIDTH = 720;
@@ -31,6 +32,8 @@ char timeText[64];
 unsigned int countedFrames = 0;
 uint32_t rotation_timestamp = 0;
 uint32_t move_timestamp = 0;
+uint32_t change_timestamp = 0;
+
 
 int gameState = 0;
 int activeGame = 0;
@@ -40,6 +43,11 @@ int rotation = 0;
 int up_pressed = 0;
 int x_change = 0;
 int rotation_allowed = 0;
+int score_current = 0;
+
+//highscore
+FILE *in, *out;
+int highscore = 0;
 
 //Top left corner viewport
 SDL_Rect minoViewport = {0, 0, 40, 40};
@@ -236,6 +244,7 @@ struct minoGame {
 	int shape[16][4];
 	int x;
 	int y;
+	int index;
 } 	mino_current = {NULL, {
 	{0, 0, 0, 0}, //1.
 	{0, 0, 0, 0},
@@ -255,7 +264,7 @@ struct minoGame {
 	{0, 0, 0, 0}, //4.
 	{0, 0, 0, 0},
 	{0, 0, 0, 0},
-	{0, 0, 0, 0}}, 3, 0},
+	{0, 0, 0, 0}}, 3, 0, 0},
 	mino_next = {NULL, {
 		{0, 0, 0, 0}, //1.
 		{0, 0, 0, 0},
@@ -275,11 +284,11 @@ struct minoGame {
 		{0, 0, 0, 0}, //4.
 		{0, 0, 0, 0},
 		{0, 0, 0, 0},
-		{0, 0, 0, 0}}, 14, 12};
+		{0, 0, 0, 0}}, 14, 12, 0};
 
 struct fontTexture {
 	SDL_Texture* p_texture;
-	char	 string[20];
+	char	 string[50];
 	int width;
 	int height;
 } 	score = {NULL, "Score:", 0, 0},
@@ -287,7 +296,11 @@ struct fontTexture {
 	start = {NULL, "Neues Spiel [Enter]", 0, 0},
 	endButton = {NULL, "Spiel [b]eenden", 0, 0},
 	highscoreButton = {NULL, "[H]ighscore anzeigen", 0, 0},
-	resumeButton = {NULL, "[z]urueck zum Spiel", 0, 0};
+	resumeButton = {NULL, "[z]urueck zum Spiel", 0, 0},
+	gameover = {NULL, "GAME OVER", 0, 0},
+	pressEsc1 = {NULL, "Druecke [Esc] um zum", 0, 0},
+	pressEsc2 = {NULL, "Menue zurueckzukehren!", 0, 0},
+	highscoreTxt = {NULL, "Aktueller Highscore:", 0, 0};
 
 
 //Loads individual image as texture (hardware based rendering)
@@ -309,6 +322,9 @@ void showGame(void);
 void showMenu(void);
 
 void showHighscore(void);
+
+void showGameOver(void);
+
 
 //this goes in the *.o
 int init() {
@@ -366,6 +382,9 @@ int init() {
 			}
 		}
 	}
+	in = fopen("Highscore.txt", "r");
+	fscanf(in, "%d", &highscore);
+	fclose(in);
 	return success;
 }
 
@@ -396,6 +415,10 @@ int loadMedia() {
 	endButton.p_texture = loadTextureFromFont(endButton.string, g_textColor, &endButton.width, &endButton.height);
 	highscoreButton.p_texture = loadTextureFromFont(highscoreButton.string, g_textColor, &highscoreButton.width, &highscoreButton.height);
 	resumeButton.p_texture = loadTextureFromFont(resumeButton.string, g_textColor, &resumeButton.width, &resumeButton.height);
+	gameover.p_texture = loadTextureFromFont(gameover.string, g_textColor, &gameover.width, &gameover.height);
+	pressEsc1.p_texture = loadTextureFromFont(pressEsc1.string, g_textColor, &pressEsc1.width, &pressEsc1.height);
+	pressEsc2.p_texture = loadTextureFromFont(pressEsc2.string, g_textColor, &pressEsc2.width, &pressEsc2.height);
+	highscoreTxt.p_texture = loadTextureFromFont(highscoreTxt.string, g_textColor, &highscoreTxt.width, &highscoreTxt.height);
 
 
 	return success;
@@ -411,6 +434,14 @@ void close() {
 	score.p_texture = NULL;
 	SDL_DestroyTexture(black.p_texture);
 	black.p_texture = NULL;
+	SDL_DestroyTexture(gameover.p_texture);
+	gameover.p_texture = NULL;
+	SDL_DestroyTexture(pressEsc1.p_texture);
+	pressEsc1.p_texture = NULL;
+	SDL_DestroyTexture(pressEsc2.p_texture);
+	pressEsc2.p_texture = NULL;
+	SDL_DestroyTexture(highscoreTxt.p_texture);
+	highscoreTxt.p_texture = NULL;
 
 	//Free global font
 	TTF_CloseFont(g_font);
@@ -440,12 +471,11 @@ void renderToViewport(SDL_Texture* texture, SDL_Rect* viewport) {
 }
 
 void saveMinoToGame(void) {
+
+
 	//function is called, when its too late. so go back up one line
 	mino_current.y--;
-	if(mino_current.y < 0) {
-		printf("game over\n");
-		//handle the game over
-	}
+
 	//mino_current in game
 	for (int m = 0; m < 4; m++) {
 		for (int n = 0; n < 4; n++) {
@@ -467,7 +497,7 @@ void saveMinoToGame(void) {
 		}
 
 		if (fullrow) {
-			printf("line %d is full.\n", GAMEHEIGHT - m + fullrowsum);
+			//printf("line %d is full.\n", GAMEHEIGHT - m + fullrowsum);
 			fullrowsum++;
 			for (int n1 = 0; n1 < GAMEWIDTH; n1++) {
 				for (int m1 = m; m1 > 0; m1--) {
@@ -478,22 +508,61 @@ void saveMinoToGame(void) {
 			m++;
 		}
 	}
+	//scoring
+	score_current += 7;
+
+	switch (fullrowsum) {
+		case 1:
+		score_current += 40;
+		break;
+		case 2:
+		score_current += 100;
+		break;
+		case 3:
+		score_current += 300;
+		break;
+		case 4:
+		score_current += 1200;
+		default:
+		break;
+	}
 
 	//mino_current = mino_next
 	mino_current.y = 0;
 	mino_current.x = 3;
 	rotation = 0;
-	mino_current.p_texture = mino[next_rand].p_texture;
+	mino_current.index = mino_next.index;
+	mino_current.p_texture = mino[mino_current.index].p_texture;
 	for (int m = 0; m < 16; m++) {
 		for (int n = 0; n < 4; n++) {
-			mino_current.shape[m][n] = mino[next_rand].shape[m][n];
+			mino_current.shape[m][n] = mino[mino_current.index].shape[m][n];
 		}
 	}
-	next_rand = rand() % 7;
-	mino_next.p_texture = mino[next_rand].p_texture;
+	mino_next.index = rand() % 7;
+	mino_next.p_texture = mino[mino_next.index].p_texture;
 	for (int m = 0; m < 16; m++) {
 		for (int n = 0; n < 4; n++) {
-			mino_next.shape[m][n] = mino[next_rand].shape[m][n];
+			mino_next.shape[m][n] = mino[mino_next.index].shape[m][n];
+		}
+	}
+
+	for (int m = 0; m < 4; m++) {
+		for (int n = 0; n < 4; n++) {
+			if (mino_current.shape[m + rotation][n] && game[mino_current.y + m][mino_current.x + n]) {
+
+				//handle the game over
+				if (score_current > highscore) {
+					highscore = score_current;
+					printf("new Highscore\n");
+					out = fopen("Highscore.txt", "w");
+					fprintf(out, "%d", highscore);
+					fclose(out);
+				}
+				//score -> highscore
+				gameState = GAMESTATE_GAMEOVER;
+				activeGame = 0;
+				break;
+			}
 		}
 	}
 }
@@ -548,9 +617,8 @@ void showGame(void) {
 	renderToViewport(score.p_texture, &g_fontViewport);
 	g_fontViewport.y += score.height + 10;
 	//score
-	startTime = countedFrames / (SDL_GetTicks() / (float) 1000);
-	sprintf(timeText, "%8u", startTime);
-	scoreNum.p_texture = loadTextureFromFont(timeText, g_textColor, &scoreNum.width, &scoreNum.height);
+	sprintf(scoreNum.string, "%8u", score_current);
+	scoreNum.p_texture = loadTextureFromFont(scoreNum.string, g_textColor, &scoreNum.width, &scoreNum.height);
 	g_fontViewport.w = scoreNum.width;
 	renderToViewport(scoreNum.p_texture, &g_fontViewport);
 	SDL_DestroyTexture(scoreNum.p_texture);
@@ -565,7 +633,7 @@ void showMenu(void) {
 	SDL_RenderClear( gp_renderer );
 
 	g_fontViewport.x = SCREEN_WIDTH / 2 - (start.width / 2);
-	g_fontViewport.y = 20;
+	g_fontViewport.y = 200;
 	g_fontViewport.w = start.width;
 	renderToViewport(start.p_texture, &g_fontViewport);
 
@@ -595,8 +663,121 @@ void showMenu(void) {
 
 }
 
-void showHighscore(void) {
+void showGameOver(void){
+	//clear backbuffer
+	SDL_RenderClear( gp_renderer );
+
+	//"GAME OVER"
+	g_fontViewport.x = SCREEN_WIDTH / 2 - (gameover.width / 2);
+	g_fontViewport.y = 200;
+	g_fontViewport.w = gameover.width;
+	renderToViewport(gameover.p_texture, &g_fontViewport);
+	//"Score:" score
+	sprintf(scoreNum.string, "%8u", score_current);
+	scoreNum.p_texture = loadTextureFromFont(scoreNum.string, g_textColor, &scoreNum.width, &scoreNum.height);
+	g_fontViewport.x = SCREEN_WIDTH / 2 - ((score.width + scoreNum.width) / 2);
+	g_fontViewport.y += 50;
+	g_fontViewport.w = score.width;
 	renderToViewport(score.p_texture, &g_fontViewport);
+	g_fontViewport.x += score.width;
+	g_fontViewport.w = scoreNum.width;
+	renderToViewport(scoreNum.p_texture, &g_fontViewport);
+	SDL_DestroyTexture(scoreNum.p_texture);
+
+	//"Press [Esc] to return to main menu"
+	g_fontViewport.x = SCREEN_WIDTH / 2 - (pressEsc1.width / 2);
+	g_fontViewport.y += 200;
+	g_fontViewport.w = pressEsc1.width;
+	renderToViewport(pressEsc1.p_texture, &g_fontViewport);
+	g_fontViewport.x = SCREEN_WIDTH / 2 - (pressEsc2.width / 2);
+	g_fontViewport.y += 30;
+	g_fontViewport.w = pressEsc2.width;
+	renderToViewport(pressEsc2.p_texture, &g_fontViewport);
+
+
+	//Update screen
+	SDL_RenderPresent(gp_renderer);
+}
+
+void showHighscore(void) {
+	//clear backbuffer
+	SDL_RenderClear( gp_renderer );
+
+	//"GAME OVER"
+	g_fontViewport.x = SCREEN_WIDTH / 2 - (highscoreTxt.width / 2);
+	g_fontViewport.y = 200;
+	g_fontViewport.w = highscoreTxt.width;
+	renderToViewport(highscoreTxt.p_texture, &g_fontViewport);
+	//"Score:" score
+	sprintf(scoreNum.string, "%8u", highscore);
+	scoreNum.p_texture = loadTextureFromFont(scoreNum.string, g_textColor, &scoreNum.width, &scoreNum.height);
+	g_fontViewport.x = SCREEN_WIDTH / 2 - ((scoreNum.width) / 2);
+	g_fontViewport.y += 50;
+	g_fontViewport.w = scoreNum.width;
+	renderToViewport(scoreNum.p_texture, &g_fontViewport);
+
+	//"Press [Esc] to return to main menu"
+	g_fontViewport.x = SCREEN_WIDTH / 2 - (pressEsc1.width / 2);
+	g_fontViewport.y += 200;
+	g_fontViewport.w = pressEsc1.width;
+	renderToViewport(pressEsc1.p_texture, &g_fontViewport);
+	g_fontViewport.x = SCREEN_WIDTH / 2 - (pressEsc2.width / 2);
+	g_fontViewport.y += 30;
+	g_fontViewport.w = pressEsc2.width;
+	renderToViewport(pressEsc2.p_texture, &g_fontViewport);
+
+
+	//Update screen
+	SDL_RenderPresent(gp_renderer);
+
+}
+
+void startGame(void) {
+	gameState = GAMESTATE_GAME;
+	activeGame = 1;
+	score_current = 0;
+	for (int m = 0; m < GAMEHEIGHT; m++) {
+		for (int n = 0; n < GAMEWIDTH; n++) {
+			game_current[m][n] = game[m][n] = 0;
+		}
+	}
+	mino_current.x = 3;
+	mino_current.y = 0;
+	//create  first shapes
+	rand_first = rand() % 7;
+	mino_current.p_texture = mino[rand_first].p_texture;
+	for (int m = 0; m < 16; m++) {
+		for (int n = 0; n < 4; n++) {
+			mino_current.shape[m][n] = mino[rand_first].shape[m][n];
+		}
+	}
+	next_rand = rand() % 7;
+	mino_next.p_texture = mino[next_rand].p_texture;
+	for (int m = 0; m < 16; m++) {
+		for (int n = 0; n < 4; n++) {
+			mino_next.shape[m][n] = mino[next_rand].shape[m][n];
+		}
+	}
+	down_timestamp = SDL_GetTicks();
+}
+
+void change(void) {
+	int buffer = mino_current.index;
+	mino_current.index = mino_next.index;
+	mino_next.index = buffer;
+
+	mino_current.p_texture = mino[mino_current.index].p_texture;
+	for (int m = 0; m < 16; m++) {
+		for (int n = 0; n < 4; n++) {
+			mino_current.shape[m][n] = mino[mino_current.index].shape[m][n];
+		}
+	}
+	mino_next.p_texture = mino[mino_next.index].p_texture;
+	for (int m = 0; m < 16; m++) {
+		for (int n = 0; n < 4; n++) {
+			mino_next.shape[m][n] = mino[mino_next.index].shape[m][n];
+		}
+	}
 }
 
 //load a texture form a file (path)

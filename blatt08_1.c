@@ -13,7 +13,7 @@ Neues Spiel starten x
 Spielfeld anzeigen x
 
 Spiel beenden:
-	Highscore speichern
+	Highscore speichern X
 	Menü anzeigen x
 
 Figuren Visualisieren:
@@ -22,23 +22,23 @@ Figuren Visualisieren:
 	Randomizer für die Form x
 
 Benutzerinteraktion
-	Figuren drehen -> rotate();
-	Figuren Steuern -> move();
-	Möglichkeit, eine Figur zurückzustellen -> change();
-	Spiel pausieren und Menü anzeigen -> pause();
+	Figuren drehen -> rotate(); X
+	Figuren Steuern -> move(); X
+	Möglichkeit, eine Figur zurückzustellen -> change(); X
+	Spiel pausieren und Menü anzeigen -> pause(); X
 
 Wenn eine Reihe voll ist:
-	Punkte	-> addScore();
-	Reihe löschen -> removeRow();
+	Punkte	-> addScore(); X
+	Reihe löschen -> removeRow(); X
 
 Wenn das Feld voll ist:
-	Spiel beenden -> gameOver();
+	Spiel beenden -> gameOver(); X
 
 Menü:
-	Art des Tetrisspiels wählen (originale "Bugs")
-	Spiel beenden
-	Zurück zum aktuellen Spiel
-	Highscore anzeigen
+	Art des Tetrisspiels wählen (originale "Bugs") X
+	Spiel beenden X
+	Zurück zum aktuellen Spiel X
+	Highscore anzeigen X
 */
 
 

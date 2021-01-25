@@ -25,19 +25,19 @@ int main(int argc, char *argv[]) {
 
 			srand(time(NULL));
 			//create  first shapes
-			rand_first = rand() % 7;
-			mino_current.p_texture = mino[rand_first].p_texture;
+			mino_current.index = rand() % 7;
+			mino_current.p_texture = mino[mino_current.index].p_texture;
 			for (int m = 0; m < 16; m++) {
 				for (int n = 0; n < 4; n++) {
-					mino_current.shape[m][n] = mino[rand_first].shape[m][n];
+					mino_current.shape[m][n] = mino[mino_current.index].shape[m][n];
 				}
 			}
 			mino_current.x = 3;
-			next_rand = rand() % 7;
-			mino_next.p_texture = mino[next_rand].p_texture;
+			mino_next.index = rand() % 7;
+			mino_next.p_texture = mino[mino_next.index].p_texture;
 			for (int m = 0; m < 16; m++) {
 				for (int n = 0; n < 4; n++) {
-					mino_next.shape[m][n] = mino[next_rand].shape[m][n];
+					mino_next.shape[m][n] = mino[mino_next.index].shape[m][n];
 				}
 			}
 			//while the app is running:  GAMELOOP
@@ -51,33 +51,52 @@ int main(int argc, char *argv[]) {
 						//Select surfaces based on key press
 						switch (e.key.keysym.sym) {
 							case SDLK_UP:
-								up_pressed = 1;
+								if(gameState == GAMESTATE_GAME) {
+									up_pressed = 1;
+								}
 								break;
 							case SDLK_DOWN:
-								treshold = 50;
+								if (gameState == GAMESTATE_GAME) {
+									treshold = 50;
+								}
 								break;
 							case SDLK_LEFT:
-								x_change = -1;
+								if (gameState == GAMESTATE_GAME) {
+									x_change = -1;
+								}
 								break;
 							case SDLK_RIGHT:
-								x_change = 1;
+								if (gameState == GAMESTATE_GAME) {
+									x_change = 1;
+								}
 								break;
 							case SDLK_ESCAPE:
 								gameState = GAMESTATE_MENU;
 								break;
 							case SDLK_RETURN:
-								gameState = GAMESTATE_GAME;
-								activeGame = 1;
+								if (gameState == GAMESTATE_MENU) {
+									startGame();
+								}
 								break;
 							case SDLK_z:
-
+									if (activeGame) {
+										gameState = GAMESTATE_GAME;
+									}
 								break;
 							case SDLK_h:
-								gameState = GAMESTATE_HIGHSCORE;
+								if (gameState == GAMESTATE_MENU) {
+									gameState = GAMESTATE_HIGHSCORE;
+								}
 								break;
 							case SDLK_b:
-								quit = 1;
+								if (gameState == GAMESTATE_MENU) {
+									quit = 1;
+								}
 								break;
+							case SDLK_c:
+								if (gameState == GAMESTATE_GAME && (SDL_GetTicks() - change_timestamp) > 100) {
+									change();
+								}
 							default:
 
 								break;
@@ -156,6 +175,9 @@ int main(int argc, char *argv[]) {
 							break;
 						case GAMESTATE_HIGHSCORE:
 							showHighscore();
+							break;
+						case GAMESTATE_GAMEOVER:
+							showGameOver();
 							break;
 						default:
 							break;
